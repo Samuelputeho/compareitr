@@ -31,20 +31,14 @@ jobs:
         sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
         xcodebuild -version
     
-    - name: Build iOS App for Simulator
+    - name: Build iOS App
       run: |
-        flutter build ios --release --no-codesign --simulator
-    
-    - name: Create IPA from Simulator Build
-      run: |
-        cd ios
-        xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.0' -archivePath build/Runner.xcarchive archive
-        xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build -exportOptionsPlist ExportOptions.plist
+        flutter build ipa --release --no-codesign
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: ios/build/*.ipa
+        app-path: build/ios/ipa/*.ipa
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
