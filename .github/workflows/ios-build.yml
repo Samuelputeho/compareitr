@@ -26,9 +26,14 @@ jobs:
         cd ios
         pod install --repo-update
     
+    - name: Setup Xcode
+      run: |
+        sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+        xcodebuild -version
+    
     - name: Build iOS App
       run: |
-        flutter build ipa --release
+        flutter build ipa --release --no-codesign
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
