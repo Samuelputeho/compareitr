@@ -1,41 +1,44 @@
-workflows:
-  ios-workflow:
-    name: iOS Workflow
-    max_build_duration: 60
-    environment:
-      vars:
-        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
-        XCODE_SCHEME: "Runner"
-        BUNDLE_ID: "com.example.compareitr"
-      xcode: latest
-      cocoapods: default
-    scripts:
-      - name: Set up keychain to be used for codesigning
-        script: |
-          keychain initialize
-      - name: Fetch signing files
-        script: |
-          # Fetch the signing files from Codemagic
-          app-store-connect fetch-signing-files $BUNDLE_ID --type IOS_APP_STORE --create
-      - name: Set up signing certificate
-        script: |
-          keychain add-certificates
-      - name: Set up provisioning profile
-        script: |
-          app-store-connect fetch-provisioning-profiles $BUNDLE_ID --type IOS_APP_STORE
-      - name: Increment build number
-        script: |
-          # Increment the last digit of version number automatically
-          cd ios && agvtool next-version -all
-      - name: Build ipa for distribution
-        script: |
-          flutter build ipa --release --export-method=app-store
-    artifacts:
-      - build/ios/ipa/*.ipa
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        beta_groups:
-          - group name 1
-          - group name 2
+name: iOS Build and Upload to TestFlight
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.35.6'
+        channel: 'stable'
+    
+    - name: Get Flutter dependencies
+      run: flutter pub get
+    
+    - name: Install CocoaPods
+      run: |
+        cd ios
+        pod install --repo-update
+    
+    - name: Setup Xcode
+      run: |
+        sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+        xcodebuild -version
+    
+    - name: Build iOS App
+      run: |
+        flutter build ipa --release --no-codesign
+    
+    - name: Upload to TestFlight
+      uses: apple-actions/upload-testflight-build@v1
+      with:
+        app-path: build/ios/ipa/*.ipa
+        issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+        api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
