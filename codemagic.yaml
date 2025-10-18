@@ -1,0 +1,41 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 60
+    environment:
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+        BUNDLE_ID: "com.example.compareitr"
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up keychain to be used for codesigning
+        script: |
+          keychain initialize
+      - name: Fetch signing files
+        script: |
+          # Fetch the signing files from Codemagic
+          app-store-connect fetch-signing-files $BUNDLE_ID --type IOS_APP_STORE --create
+      - name: Set up signing certificate
+        script: |
+          keychain add-certificates
+      - name: Set up provisioning profile
+        script: |
+          app-store-connect fetch-provisioning-profiles $BUNDLE_ID --type IOS_APP_STORE
+      - name: Increment build number
+        script: |
+          # Increment the last digit of version number automatically
+          cd ios && agvtool next-version -all
+      - name: Build ipa for distribution
+        script: |
+          flutter build ipa --release --export-method=app-store
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - group name 1
+          - group name 2
