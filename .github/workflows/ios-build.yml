@@ -26,6 +26,12 @@ jobs:
       with:
         xcode-version: latest-stable
     
+    - name: Import Code Signing Certificates
+      uses: Apple-Actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+        p12-password: ${{ secrets.CERTIFICATE_PASSWORD }}
+    
     - name: Download Provisioning Profiles
       uses: Apple-Actions/download-provisioning-profiles@v1
       with:
