@@ -27,16 +27,11 @@ workflows:
         script: |
           # Increment the last digit of version number automatically
           cd ios && agvtool next-version -all
-      - name: Build iOS app for simulator first
+      - name: Build ipa for distribution
         script: |
-          flutter build ios --release --no-codesign
-      - name: Create IPA from simulator build
-        script: |
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.5' -archivePath build/Runner.xcarchive archive
-          xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build -exportOptionsPlist ExportOptions.plist
+          flutter build ipa --release --export-method=app-store
     artifacts:
-      - ios/build/*.ipa
+      - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         auth: integration
