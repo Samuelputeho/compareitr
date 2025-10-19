@@ -56,13 +56,19 @@ jobs:
         cp "/Users/runner/Library/MobileDevice/Provisioning Profiles/d62b673d-a933-4d3c-bb01-406fe11f2b94.mobileprovision" "build/ios/Release-iphoneos/Runner.app/embedded.mobileprovision"
         echo "Provisioning profile embedded"
     
-    - name: Code sign the app
+    - name: Code sign all frameworks
       run: |
         # Set the keychain as default
         security default-keychain -s signing_temp.keychain
         security unlock-keychain -p "" signing_temp.keychain
         
-        # Code sign the app without entitlements
+        # Sign all frameworks
+        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" {} \;
+        echo "All frameworks code signed"
+    
+    - name: Code sign the app
+      run: |
+        # Code sign the main app
         codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" build/ios/Release-iphoneos/Runner.app
         echo "App code signed"
     
