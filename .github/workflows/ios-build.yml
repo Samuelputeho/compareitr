@@ -15,30 +15,40 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.35.6'
+        flutter-version: '3.24.0'
         channel: 'stable'
     
-    - name: Get Flutter dependencies
+    - name: Install dependencies
       run: flutter pub get
     
-    - name: Install CocoaPods
-      run: |
-        cd ios
-        pod install --repo-update
+    - name: Setup iOS Code Signing
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
     
-    - name: Setup Xcode
-      run: |
-        sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
-        xcodebuild -version
+    - name: Import Code Signing Certificate
+      uses: Apple-Actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+        p12-password: ${{ secrets.CERTIFICATE_PASSWORD }}
     
-    - name: Build iOS App
-      run: |
-        flutter build ipa --release --no-codesign
+    - name: Import Provisioning Profile
+      uses: Apple-Actions/download-provisioning-profiles@v1
+      with:
+        bundle-id: com.compareitr.app
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+    
+    - name: Build iOS app
+      run: flutter build ipa --release --export-method=app-store
+      env:
+        FLUTTER_BUILD_MODE: release
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: build/ios/ipa/*.ipa
-        issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
-        api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        app-path: 'build/ios/ipa/*.ipa'
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
