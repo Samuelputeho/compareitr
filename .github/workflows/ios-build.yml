@@ -26,38 +26,46 @@ jobs:
       with:
         xcode-version: latest-stable
     
-    - name: Build iOS app for simulator
-      run: flutter build ios --no-codesign --simulator
+    - name: Import Code Signing Certificates
+      uses: Apple-Actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+        p12-password: ${{ secrets.CERTIFICATE_PASSWORD }}
     
-    - name: Create device-compatible build
-      run: |
-        # Copy simulator build to device location
-        mkdir -p build/ios/Release-iphoneos
-        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
-        echo "Device-compatible build created"
+    - name: Download Provisioning Profiles
+      uses: Apple-Actions/download-provisioning-profiles@v1
+      with:
+        bundle-id: 'com.example.compareitr'
+        issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+        api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Create IPA for TestFlight
+    - name: Set up keychain for Flutter
       run: |
-        cd build/ios/Release-iphoneos
-        mkdir Payload
-        cp -r Runner.app Payload/
-        zip -r app.ipa Payload
-        mkdir -p ../../ipa
-        mv app.ipa ../../ipa/
-        echo "IPA created successfully!"
-        echo "IPA location: build/ipa/app.ipa"
+        # Set the keychain as default
+        security default-keychain -s signing_temp.keychain
+        security unlock-keychain -p "" signing_temp.keychain
+        
+        # List certificates to verify
+        security find-identity -v -p codesigning
+        
+        # Set keychain settings
+        security set-key-partition-list -S apple-tool:,apple: -k "" signing_temp.keychain
+    
+    - name: Build iOS app for device
+      run: flutter build ipa --release --export-method=app-store
     
     - name: Upload IPA as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ios-build-ipa
-        path: build/ipa/app.ipa
+        path: build/ios/ipa/*.ipa
         retention-days: 30
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: 'build/ipa/app.ipa'
+        app-path: 'build/ios/ipa/*.ipa'
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
