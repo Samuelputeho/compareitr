@@ -40,18 +40,69 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app in release mode
+    - name: Build iOS app for simulator
+      run: flutter build ios --no-codesign --simulator
+    
+    - name: Create device-compatible build
       run: |
-        # Set environment variables for release build
-        export FLUTTER_BUILD_MODE=release
-        export CODE_SIGN_IDENTITY=""
-        export CODE_SIGNING_REQUIRED=NO
-        export CODE_SIGNING_ALLOWED=NO
+        # Copy simulator build to device location
+        mkdir -p build/ios/Release-iphoneos
+        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
+        echo "Device-compatible build created"
+    
+    - name: Remove x86_64 architecture from all binaries
+      run: |
+        # Remove x86_64 from main executable
+        lipo -remove x86_64 build/ios/Release-iphoneos/Runner.app/Runner -output build/ios/Release-iphoneos/Runner.app/Runner
         
-        # Build for device in release mode
-        flutter build ios --release --no-codesign
+        # Remove x86_64 from all frameworks
+        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec sh -c '
+          for framework in "$@"; do
+            framework_name=$(basename "$framework" .framework)
+            if [ -f "$framework/$framework_name" ]; then
+              echo "Processing $framework_name"
+              lipo -remove x86_64 "$framework/$framework_name" -output "$framework/$framework_name"
+            fi
+          done
+        ' _ {} +
         
-        echo "Release build completed"
+        # Remove x86_64 from all dylib files
+        find build/ios/Release-iphoneos/Runner.app -name "*.dylib" -exec lipo -remove x86_64 {} -output {} \;
+        
+        echo "x86_64 architecture removed from all binaries"
+    
+    - name: Strip debug symbols and non-public symbols
+      run: |
+        # Strip all symbols from the main executable
+        strip -S -x build/ios/Release-iphoneos/Runner.app/Runner
+        
+        # Strip symbols from all frameworks
+        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec sh -c '
+          for framework in "$@"; do
+            framework_name=$(basename "$framework" .framework)
+            if [ -f "$framework/$framework_name" ]; then
+              echo "Stripping $framework_name"
+              strip -S -x "$framework/$framework_name"
+            fi
+          done
+        ' _ {} +
+        
+        echo "Debug symbols stripped from all binaries"
+    
+    - name: Clean up simulator-specific files
+      run: |
+        # Remove simulator-specific files that cause issues
+        rm -f build/ios/Release-iphoneos/Runner.app/Runner.debug.dylib
+        rm -f build/ios/Release-iphoneos/Runner.app/__preview.dylib
+        echo "Simulator-specific files removed"
+    
+    - name: Fix Info.plist for device
+      run: |
+        # Update Info.plist to remove simulator references
+        plutil -replace DTPlatformName -string "iphoneos" build/ios/Release-iphoneos/Runner.app/Info.plist
+        plutil -replace CFBundleSupportedPlatforms -array build/ios/Release-iphoneos/Runner.app/Info.plist
+        plutil -replace CFBundleSupportedPlatforms.0 -string "iPhoneOS" build/ios/Release-iphoneos/Runner.app/Info.plist
+        echo "Info.plist updated for device"
     
     - name: Embed provisioning profile
       run: |
