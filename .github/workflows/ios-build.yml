@@ -40,15 +40,8 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app for simulator
-      run: flutter build ios --no-codesign --simulator
-    
-    - name: Create device-compatible build
-      run: |
-        # Copy simulator build to device location
-        mkdir -p build/ios/Release-iphoneos
-        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
-        echo "Device-compatible build created"
+    - name: Build iOS app for device
+      run: flutter build ios --release --no-codesign
     
     - name: Embed provisioning profile
       run: |
