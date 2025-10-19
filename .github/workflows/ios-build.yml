@@ -21,20 +21,27 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
     
-    - name: Setup iOS Code Signing
+    - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable
     
-    - name: Build iOS app
-      run: flutter build ipa --release --export-method=app-store --no-codesign
-      env:
-        FLUTTER_BUILD_MODE: release
+    - name: Build iOS app (Flutter only)
+      run: flutter build ios --release --no-codesign
+    
+    - name: Create IPA manually
+      run: |
+        cd build/ios/Release-iphoneos
+        mkdir Payload
+        cp -r Runner.app Payload/
+        zip -r app.ipa Payload
+        mkdir -p ../../ipa
+        mv app.ipa ../../ipa/
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: 'build/ios/ipa/*.ipa'
+        app-path: 'build/ipa/app.ipa'
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
