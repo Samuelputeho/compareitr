@@ -40,8 +40,18 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app for simulator
-      run: flutter build ios --no-codesign --simulator
+    - name: Build iOS app in release mode for simulator
+      run: |
+        # Set environment variables for release build
+        export FLUTTER_BUILD_MODE=release
+        export CODE_SIGN_IDENTITY=""
+        export CODE_SIGNING_REQUIRED=NO
+        export CODE_SIGNING_ALLOWED=NO
+        
+        # Build for simulator in release mode
+        flutter build ios --release --no-codesign --simulator
+        
+        echo "Release build completed"
     
     - name: Create device-compatible build
       run: |
