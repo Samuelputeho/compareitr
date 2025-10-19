@@ -40,14 +40,19 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app using xcodebuild with specific destination
+    - name: List available simulators
+      run: |
+        xcrun simctl list devices available
+        echo "Available simulators listed above"
+    
+    - name: Build iOS app using xcodebuild with any available simulator
       run: |
         cd ios
-        # Try building with a specific simulator destination
+        # Use the first available iPhone simulator
         xcodebuild -workspace Runner.xcworkspace \
           -scheme Runner \
           -configuration Release \
-          -destination 'platform=iOS Simulator,name=iPhone 16' \
+          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
           -archivePath build/Runner.xcarchive \
           archive \
           CODE_SIGN_IDENTITY="" \
