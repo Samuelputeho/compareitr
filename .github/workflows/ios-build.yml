@@ -47,6 +47,13 @@ jobs:
         echo "IPA created successfully!"
         echo "IPA location: build/ipa/app.ipa"
     
+    - name: Upload IPA as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build-ipa
+        path: build/ipa/app.ipa
+        retention-days: 30
+    
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
@@ -54,3 +61,4 @@ jobs:
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      continue-on-error: true
