@@ -27,7 +27,7 @@ jobs:
         xcode-version: latest-stable
     
     - name: Build iOS app for simulator
-      run: flutter build ios --release --no-codesign --simulator
+      run: flutter build ios --no-codesign --simulator
     
     - name: Create build archive
       run: |
