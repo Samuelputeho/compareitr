@@ -40,6 +40,18 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
+    - name: Set up keychain for Flutter
+      run: |
+        # Set the keychain as default
+        security default-keychain -s signing_temp.keychain
+        security unlock-keychain -p "" signing_temp.keychain
+        
+        # List certificates to verify
+        security find-identity -v -p codesigning
+        
+        # Set keychain settings
+        security set-key-partition-list -S apple-tool:,apple: -k "" signing_temp.keychain
+    
     - name: Build iOS app for device
       run: flutter build ipa --release --export-method=app-store
     
