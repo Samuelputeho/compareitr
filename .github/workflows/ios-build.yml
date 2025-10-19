@@ -40,44 +40,37 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Create ExportOptions.plist
+    - name: Set up keychain for Flutter
       run: |
-        cat > ios/ExportOptions.plist << EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>3MUKMZ9YDV</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-        </dict>
-        </plist>
-        EOF
+        # Set the keychain as default
+        security default-keychain -s signing_temp.keychain
+        security unlock-keychain -p "" signing_temp.keychain
+        
+        # List certificates to verify
+        security find-identity -v -p codesigning
+        
+        # Set keychain settings
+        security set-key-partition-list -S apple-tool:,apple: -k "" signing_temp.keychain
+        
+        # Set environment variables for Flutter
+        echo "FLUTTER_BUILD_MODE=release" >> $GITHUB_ENV
+        echo "CODE_SIGN_IDENTITY=Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" >> $GITHUB_ENV
+        echo "PROVISIONING_PROFILE_SPECIFIER=CompareItr Distribution" >> $GITHUB_ENV
     
-    - name: Build with Xcode
-      run: |
-        cd ios
-        xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'platform=iOS,id=generic' -archivePath Runner.xcarchive archive
-        xcodebuild -exportArchive -archivePath Runner.xcarchive -exportPath . -exportOptionsPlist ExportOptions.plist
+    - name: Build iOS app for device
+      run: flutter build ipa --release --export-method=app-store
     
     - name: Upload IPA as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ios-build-ipa
-        path: ios/*.ipa
+        path: build/ios/ipa/*.ipa
         retention-days: 30
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: 'ios/*.ipa'
+        app-path: 'build/ios/ipa/*.ipa'
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
