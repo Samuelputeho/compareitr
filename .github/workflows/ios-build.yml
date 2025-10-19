@@ -40,56 +40,52 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app for simulator
-      run: flutter build ios --no-codesign --simulator
-    
-    - name: Create device-compatible build
+    - name: Build iOS app using xcodebuild
       run: |
-        # Copy simulator build to device location
-        mkdir -p build/ios/Release-iphoneos
-        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
-        echo "Device-compatible build created"
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -destination generic/platform=iOS \
+          -archivePath build/Runner.xcarchive \
+          archive \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+        echo "Xcode build completed"
     
-    - name: Remove x86_64 architecture from all binaries
+    - name: Extract archive
       run: |
-        # Remove x86_64 from main executable
-        lipo -remove x86_64 build/ios/Release-iphoneos/Runner.app/Runner -output build/ios/Release-iphoneos/Runner.app/Runner
-        
-        # Remove x86_64 from all frameworks
-        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec sh -c '
-          for framework in "$@"; do
-            framework_name=$(basename "$framework" .framework)
-            if [ -f "$framework/$framework_name" ]; then
-              echo "Processing $framework_name"
-              lipo -remove x86_64 "$framework/$framework_name" -output "$framework/$framework_name"
-            fi
-          done
-        ' _ {} +
-        
-        # Remove x86_64 from all dylib files
-        find build/ios/Release-iphoneos/Runner.app -name "*.dylib" -exec lipo -remove x86_64 {} -output {} \;
-        
-        echo "x86_64 architecture removed from all binaries"
+        cd ios
+        xcodebuild -exportArchive \
+          -archivePath build/Runner.xcarchive \
+          -exportPath build/export \
+          -exportOptionsPlist exportOptions.plist \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+        echo "Archive extracted"
     
-    - name: Clean up simulator-specific files
+    - name: Create export options plist
       run: |
-        # Remove simulator-specific files that cause issues
-        rm -f build/ios/Release-iphoneos/Runner.app/Runner.debug.dylib
-        rm -f build/ios/Release-iphoneos/Runner.app/__preview.dylib
-        echo "Simulator-specific files removed"
-    
-    - name: Fix Info.plist for device
-      run: |
-        # Update Info.plist to remove simulator references
-        plutil -replace DTPlatformName -string "iphoneos" build/ios/Release-iphoneos/Runner.app/Info.plist
-        plutil -replace CFBundleSupportedPlatforms -array build/ios/Release-iphoneos/Runner.app/Info.plist
-        plutil -replace CFBundleSupportedPlatforms.0 -string "iPhoneOS" build/ios/Release-iphoneos/Runner.app/Info.plist
-        echo "Info.plist updated for device"
+        cat > ios/exportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>3MUKMZ9YDV</string>
+        </dict>
+        </plist>
+        EOF
+        echo "Export options plist created"
     
     - name: Embed provisioning profile
       run: |
         # Copy the provisioning profile into the app bundle
-        cp "/Users/runner/Library/MobileDevice/Provisioning Profiles/d62b673d-a933-4d3c-bb01-406fe11f2b94.mobileprovision" "build/ios/Release-iphoneos/Runner.app/embedded.mobileprovision"
+        cp "/Users/runner/Library/MobileDevice/Provisioning Profiles/d62b673d-a933-4d3c-bb01-406fe11f2b94.mobileprovision" "ios/build/export/Runner.app/embedded.mobileprovision"
         echo "Provisioning profile embedded"
     
     - name: Code sign all frameworks
@@ -99,37 +95,37 @@ jobs:
         security unlock-keychain -p "" signing_temp.keychain
         
         # Sign all frameworks
-        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" {} \;
+        find ios/build/export/Runner.app/Frameworks -name "*.framework" -exec codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" {} \;
         echo "All frameworks code signed"
     
     - name: Code sign the app
       run: |
         # Code sign the main app
-        codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" build/ios/Release-iphoneos/Runner.app
+        codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" ios/build/export/Runner.app
         echo "App code signed"
     
     - name: Create IPA for TestFlight
       run: |
-        cd build/ios/Release-iphoneos
+        cd ios/build/export
         mkdir Payload
         cp -r Runner.app Payload/
         zip -r app.ipa Payload
         mkdir -p ../../ipa
         mv app.ipa ../../ipa/
         echo "IPA created successfully!"
-        echo "IPA location: build/ipa/app.ipa"
+        echo "IPA location: ios/ipa/app.ipa"
     
     - name: Upload IPA as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ios-build-ipa
-        path: build/ipa/app.ipa
+        path: ios/ipa/app.ipa
         retention-days: 30
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: 'build/ipa/app.ipa'
+        app-path: 'ios/ipa/app.ipa'
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
