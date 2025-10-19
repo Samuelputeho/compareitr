@@ -62,8 +62,8 @@ jobs:
         security default-keychain -s signing_temp.keychain
         security unlock-keychain -p "" signing_temp.keychain
         
-        # Code sign the app
-        codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" --entitlements ios/Runner/Runner.entitlements build/ios/Release-iphoneos/Runner.app
+        # Code sign the app without entitlements
+        codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" build/ios/Release-iphoneos/Runner.app
         echo "App code signed"
     
     - name: Create IPA for TestFlight
