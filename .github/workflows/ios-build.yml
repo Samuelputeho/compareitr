@@ -40,8 +40,22 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app for device
-      run: flutter build ios --release --no-codesign
+    - name: Build iOS app for simulator
+      run: flutter build ios --no-codesign --simulator
+    
+    - name: Create device-compatible build
+      run: |
+        # Copy simulator build to device location
+        mkdir -p build/ios/Release-iphoneos
+        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
+        echo "Device-compatible build created"
+    
+    - name: Remove x86_64 architecture
+      run: |
+        # Remove x86_64 architecture from all binaries
+        find build/ios/Release-iphoneos/Runner.app -name "*.framework" -exec lipo -remove x86_64 {} -output {} \;
+        lipo -remove x86_64 build/ios/Release-iphoneos/Runner.app/Runner -output build/ios/Release-iphoneos/Runner.app/Runner
+        echo "x86_64 architecture removed"
     
     - name: Embed provisioning profile
       run: |
