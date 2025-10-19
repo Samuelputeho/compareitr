@@ -31,7 +31,7 @@ jobs:
     
     - name: Create build archive
       run: |
-        cd build/ios/Release-iphonesimulator
+        cd build/ios/iphonesimulator
         mkdir -p ../../archive
         zip -r ../../archive/ios-build.zip Runner.app
         echo "iOS build completed successfully!"
