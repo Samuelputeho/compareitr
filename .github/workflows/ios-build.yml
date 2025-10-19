@@ -71,6 +71,12 @@ jobs:
         
         echo "x86_64 architecture removed from all binaries"
     
+    - name: Strip debug symbols from main executable
+      run: |
+        # Strip debug symbols from the main Runner executable
+        strip -S build/ios/Release-iphoneos/Runner.app/Runner
+        echo "Debug symbols stripped from main executable"
+    
     - name: Clean up simulator-specific files
       run: |
         # Remove simulator-specific files that cause issues
