@@ -40,20 +40,67 @@ jobs:
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
     
-    - name: Build iOS app for device
-      run: flutter build ipa --release --export-method=app-store
+    - name: Build iOS app for simulator
+      run: flutter build ios --no-codesign --simulator
+    
+    - name: Create device-compatible build
+      run: |
+        # Copy simulator build to device location
+        mkdir -p build/ios/Release-iphoneos
+        cp -r build/ios/iphonesimulator/Runner.app build/ios/Release-iphoneos/
+        echo "Device-compatible build created"
+    
+    - name: Remove x86_64 architecture
+      run: |
+        # Remove x86_64 architecture from all binaries
+        find build/ios/Release-iphoneos/Runner.app -name "*.framework" -exec lipo -remove x86_64 {} -output {} \;
+        lipo -remove x86_64 build/ios/Release-iphoneos/Runner.app/Runner -output build/ios/Release-iphoneos/Runner.app/Runner
+        echo "x86_64 architecture removed"
+    
+    - name: Embed provisioning profile
+      run: |
+        # Copy the provisioning profile into the app bundle
+        cp "/Users/runner/Library/MobileDevice/Provisioning Profiles/d62b673d-a933-4d3c-bb01-406fe11f2b94.mobileprovision" "build/ios/Release-iphoneos/Runner.app/embedded.mobileprovision"
+        echo "Provisioning profile embedded"
+    
+    - name: Code sign all frameworks
+      run: |
+        # Set the keychain as default
+        security default-keychain -s signing_temp.keychain
+        security unlock-keychain -p "" signing_temp.keychain
+        
+        # Sign all frameworks
+        find build/ios/Release-iphoneos/Runner.app/Frameworks -name "*.framework" -exec codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" {} \;
+        echo "All frameworks code signed"
+    
+    - name: Code sign the app
+      run: |
+        # Code sign the main app
+        codesign --force --sign "Apple Distribution: Samuele Puteho (3MUKMZ9YDV)" build/ios/Release-iphoneos/Runner.app
+        echo "App code signed"
+    
+    - name: Create IPA for TestFlight
+      run: |
+        cd build/ios/Release-iphoneos
+        mkdir Payload
+        cp -r Runner.app Payload/
+        zip -r app.ipa Payload
+        mkdir -p ../../ipa
+        mv app.ipa ../../ipa/
+        echo "IPA created successfully!"
+        echo "IPA location: build/ipa/app.ipa"
     
     - name: Upload IPA as Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ios-build-ipa
-        path: build/ios/ipa/*.ipa
+        path: build/ipa/app.ipa
         retention-days: 30
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
       with:
-        app-path: 'build/ios/ipa/*.ipa'
+        app-path: 'build/ipa/app.ipa'
         issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
         api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
