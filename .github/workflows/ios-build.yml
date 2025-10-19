@@ -26,19 +26,8 @@ jobs:
       with:
         xcode-version: latest-stable
     
-    - name: Build iOS app for device
-      run: flutter build ios --release --no-codesign
-    
-    - name: Create IPA for TestFlight
-      run: |
-        cd build/ios/Release-iphoneos
-        mkdir Payload
-        cp -r Runner.app Payload/
-        zip -r app.ipa Payload
-        mkdir -p ../../ipa
-        mv app.ipa ../../ipa/
-        echo "IPA created successfully!"
-        echo "IPA location: build/ipa/app.ipa"
+    - name: Build iOS app for TestFlight
+      run: flutter build ipa --release --no-codesign
     
     - name: Upload to TestFlight
       uses: apple-actions/upload-testflight-build@v1
